@@ -4,7 +4,11 @@ import 'dart:ui';
 
 import 'package:android_alarm_manager/android_alarm_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/services.dart';
+import 'package:soundpool/soundpool.dart';
 import 'package:flutter/material.dart';
+
+Soundpool _soundpool;
 
 /// The [SharedPreferences] key to access the alarm fire count.
 const String countKey = 'count';
@@ -21,7 +25,7 @@ SharedPreferences prefs;
 Future<void> main() async {
   // TODO(bkonyi): uncomment
   WidgetsFlutterBinding.ensureInitialized();
-
+  _soundpool = Soundpool();
   // Register the UI isolate's SendPort to allow for communication from the
   // background isolate.
   IsolateNameServer.registerPortWithName(
@@ -57,11 +61,15 @@ class _AlarmHomePage extends StatefulWidget {
 
 class _AlarmHomePageState extends State<_AlarmHomePage> {
   int _counter = 0;
+  Future<int> _soundId;
+  int _alarmSoundStreamId;
+  int _cheeringStreamId = -1;
 
   @override
   void initState() {
     super.initState();
     AndroidAlarmManager.initialize();
+    _soundId = _loadSound();
 
     // Register for events from the background isolate. These messages will
     // always coincide with an alarm firing.
@@ -145,9 +153,33 @@ class _AlarmHomePageState extends State<_AlarmHomePage> {
                 );
               },
             ),
+            RaisedButton(
+              onPressed: _playSound,
+              child: Text("Play"),
+            ),
+            RaisedButton(
+              onPressed: _stopSound,
+              child: Text("Stop"),
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<int> _loadSound() async {
+    var asset = await rootBundle.load("sounds/system37.wav");
+    return await _soundpool.load(asset);
+  }
+
+  Future<void> _playSound() async {
+    var _alarmSound = await _soundId;
+    _alarmSoundStreamId = await _soundpool.play(_alarmSound);
+  }
+
+  Future<void> _stopSound() async {
+    if (_cheeringStreamId != null) {
+      await _soundpool.stop(_cheeringStreamId);
+    }
   }
 }
