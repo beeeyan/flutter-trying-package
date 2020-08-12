@@ -1,43 +1,108 @@
+import 'dart:isolate';
+import 'dart:math';
+import 'dart:ui';
+
+import 'package:android_alarm_manager/android_alarm_manager.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 
-void main() {
-  runApp(MyApp());
+/// The [SharedPreferences] key to access the alarm fire count.
+const String countKey = 'count';
+
+/// The name associated with the UI isolate's [SendPort].
+const String isolateName = 'isolate';
+
+/// A port used to communicate from a background isolate to the UI isolate.
+final ReceivePort port = ReceivePort();
+
+/// Global [SharedPreferences] object.
+SharedPreferences prefs;
+
+Future<void> main() async {
+  // TODO(bkonyi): uncomment
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Register the UI isolate's SendPort to allow for communication from the
+  // background isolate.
+  IsolateNameServer.registerPortWithName(
+    port.sendPort,
+    isolateName,
+  );
+  prefs = await SharedPreferences.getInstance();
+  if (!prefs.containsKey(countKey)) {
+    await prefs.setInt(countKey, 0);
+  }
+  runApp(AlarmManagerExampleApp());
 }
 
-class MyApp extends StatelessWidget {
+/// Example app for Espresso plugin.
+class AlarmManagerExampleApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: '寝落ち防止',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
-      ),
-      home: MyHomePage(title: '寝落ち防止'),
+      home: _AlarmHomePage(title: '寝落ち防止'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
+class _AlarmHomePage extends StatefulWidget {
+  _AlarmHomePage({Key key, this.title}) : super(key: key);
   final String title;
 
   @override
-  _MyHomePageState createState() => _MyHomePageState();
+  _AlarmHomePageState createState() => _AlarmHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _AlarmHomePageState extends State<_AlarmHomePage> {
   int _counter = 0;
 
-  void _incrementCounter() {
+  @override
+  void initState() {
+    super.initState();
+    AndroidAlarmManager.initialize();
+
+    // Register for events from the background isolate. These messages will
+    // always coincide with an alarm firing.
+    port.listen((_) async => await _incrementCounter());
+  }
+
+  Future<void> _incrementCounter() async {
+    print('Increment counter!');
+
+    // Ensure we've loaded the updated count from the background isolate.
+    await prefs.reload();
+
     setState(() {
       _counter++;
     });
   }
 
+  // The background
+  static SendPort uiSendPort;
+
+  // The callback for our alarm
+  static Future<void> callback() async {
+    print('Alarm fired!');
+
+    // Get the previous cached count and increment it.
+    final prefs = await SharedPreferences.getInstance();
+    int currentCount = prefs.getInt(countKey);
+    await prefs.setInt(countKey, currentCount + 1);
+
+    // This will be null if we're running in the background.
+    uiSendPort ??= IsolateNameServer.lookupPortByName(isolateName);
+    uiSendPort?.send(null);
+  }
+
   @override
   Widget build(BuildContext context) {
+    // TODO(jackson): This has been deprecated and should be replaced
+    // with `headline4` when it's available on all the versions of
+    // Flutter that we test.
+    // ignore: deprecated_member_use
+    final textStyle = Theme.of(context).textTheme.display1;
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.title),
@@ -47,20 +112,42 @@ class _MyHomePageState extends State<MyHomePage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Text(
-              'You have pushed the button this many times:',
+              'Alarm fired $_counter times',
+              style: textStyle,
             ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headline4,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: <Widget>[
+                Text(
+                  'Total alarms fired: ',
+                  style: textStyle,
+                ),
+                Text(
+                  prefs.getInt(countKey).toString(),
+                  key: ValueKey('BackgroundCountText'),
+                  style: textStyle,
+                ),
+              ],
+            ),
+            RaisedButton(
+              child: Text(
+                'Schedule OneShot Alarm',
+              ),
+              key: ValueKey('RegisterOneShotAlarm'),
+              onPressed: () async {
+                await AndroidAlarmManager.oneShot(
+                  const Duration(seconds: 5),
+                  // Ensure we have a unique alarm ID.
+                  Random().nextInt(pow(2, 31)),
+                  callback,
+                  exact: true,
+                  wakeup: true,
+                );
+              },
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
