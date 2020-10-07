@@ -2,7 +2,6 @@ import 'dart:isolate';
 import 'dart:math';
 import 'dart:ui';
 
-import 'package:android_alarm_manager/android_alarm_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/services.dart';
 import 'package:soundpool/soundpool.dart';
@@ -72,7 +71,6 @@ class _AlarmHomePageState extends State<_AlarmHomePage> {
   @override
   void initState() {
     super.initState();
-    AndroidAlarmManager.initialize();
     _soundId = _loadSound();
 
     // Register for events from the background isolate. These messages will
@@ -146,15 +144,7 @@ class _AlarmHomePageState extends State<_AlarmHomePage> {
                 'Schedule OneShot Alarm',
               ),
               key: ValueKey('RegisterOneShotAlarm'),
-              onPressed: () async {
-                await AndroidAlarmManager.oneShot(
-                  const Duration(seconds: 5),
-                  // Ensure we have a unique alarm ID.
-                  Random().nextInt(pow(2, 31)),
-                  callback,
-                  exact: true,
-                  wakeup: true,
-                );
+              onPressed: () {
               },
             ),
             RaisedButton(
@@ -167,7 +157,7 @@ class _AlarmHomePageState extends State<_AlarmHomePage> {
             ),
             RaisedButton(
               onPressed: () {
-                //Navigator.of(context).pushReplacementNamed("/exp/geofence");
+                // Navigator.of(context).pushReplacementNamed("/exp/geofence");
               },
               child: Text("try example"),
             ),
