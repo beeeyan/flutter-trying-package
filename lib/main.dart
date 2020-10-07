@@ -44,9 +44,13 @@ class AlarmManagerExampleApp extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
+    final String title = '寝落ち防止';
     return MaterialApp(
-      title: '寝落ち防止',
-      home: _AlarmHomePage(title: '寝落ち防止'),
+      title: title,
+      home: _AlarmHomePage(title: title),
+      routes: <String,WidgetBuilder>{
+        '/home': (BuildContext context) => _AlarmHomePage(title: title),
+      },
     );
   }
 }
@@ -160,6 +164,12 @@ class _AlarmHomePageState extends State<_AlarmHomePage> {
             RaisedButton(
               onPressed: _stopSound,
               child: Text("Stop"),
+            ),
+            RaisedButton(
+              onPressed: () {
+                //Navigator.of(context).pushReplacementNamed("/exp/geofence");
+              },
+              child: Text("try example"),
             ),
           ],
         ),
