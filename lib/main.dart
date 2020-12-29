@@ -7,6 +7,8 @@ import 'package:flutter/services.dart';
 import 'package:soundpool/soundpool.dart';
 import 'package:flutter/material.dart';
 
+import 'pages/geofencing.dart';
+
 Soundpool _soundpool;
 
 /// The [SharedPreferences] key to access the alarm fire count.
@@ -49,6 +51,7 @@ class AlarmManagerExampleApp extends StatelessWidget {
       home: _AlarmHomePage(title: title),
       routes: <String,WidgetBuilder>{
         '/home': (BuildContext context) => _AlarmHomePage(title: title),
+        '/exp/geofence': (BuildContext context) =>  GeofencingExp(),
       },
     );
   }
@@ -157,7 +160,7 @@ class _AlarmHomePageState extends State<_AlarmHomePage> {
             ),
             RaisedButton(
               onPressed: () {
-                // Navigator.of(context).pushReplacementNamed("/exp/geofence");
+                Navigator.of(context).pushReplacementNamed("/exp/geofence");
               },
               child: Text("try example"),
             ),
